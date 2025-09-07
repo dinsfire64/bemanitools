@@ -70,7 +70,7 @@ bool prev_top = false;
 bool prev_bottom = false;
 
 p4io_lights_t light_buff = {0};
-p4io_coin_lights_t coin_buff = {0};
+p4io_coinstock_t coin_buff = {0};
 uint32_t jamma[4] = {0};
 
 void ddr_io_set_loggers(

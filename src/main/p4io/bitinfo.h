@@ -42,9 +42,9 @@ typedef union {
         bool coin3_7 : 1;
     } ddr;
     uint8_t raw[4];
-} p4io_coin_lights_t;
+} p4io_coinstock_t;
 _Static_assert(
-    sizeof(p4io_coin_lights_t) == 4, "p4io_coin_lights_t is the wrong size");
+    sizeof(p4io_coinstock_t) == 4, "p4io_coinstock_t is the wrong size");
 
 typedef union {
     struct {
