@@ -206,7 +206,7 @@ void ddr_io_set_lights_extio(uint32_t lights)
     light_buff.ddr.bass_g = neon_on ? all_colors[neon_index][1] : 0x00;
     light_buff.ddr.bass_b = neon_on ? all_colors[neon_index][2] : 0x00;
 
-    if (neon_on != prev_neon) {
+    if (neon_on && neon_on != prev_neon) {
         neon_index = (neon_index + 1) % num_of_colors;
     }
 
@@ -233,11 +233,11 @@ void ddr_io_set_lights_p3io(uint32_t lights)
     light_buff.ddr.header_down_g = btm ? all_colors[bottom_index][1] : 0x00;
     light_buff.ddr.header_down_b = btm ? all_colors[bottom_index][2] : 0x00;
 
-    if (top != prev_top) {
+    if (top && top != prev_top) {
         top_index = (top_index + 1) % num_of_colors;
     }
 
-    if (btm != prev_bottom) {
+    if (btm && btm != prev_bottom) {
         bottom_index = (bottom_index + 1) % num_of_colors;
     }
 
