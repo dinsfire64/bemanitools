@@ -200,7 +200,7 @@ void ddr_io_set_lights_extio(uint32_t lights)
 {
     // Python4/white cab setup does not have pad lights. :(
 
-    bool neon_on = (lights & LIGHT_NEONS);
+    bool neon_on = (lights & (1 << LIGHT_NEONS));
 
     light_buff.ddr.bass_r = neon_on ? all_colors[neon_index][0] : 0x00;
     light_buff.ddr.bass_g = neon_on ? all_colors[neon_index][1] : 0x00;
@@ -219,8 +219,11 @@ void ddr_io_set_lights_extio(uint32_t lights)
 
 void ddr_io_set_lights_p3io(uint32_t lights)
 {
-    bool top = (lights & LIGHT_P1_UPPER_LAMP) || (lights & LIGHT_P2_UPPER_LAMP);
-    bool btm = (lights & LIGHT_P1_LOWER_LAMP) || (lights & LIGHT_P2_LOWER_LAMP);
+    bool top = (lights & (1 << LIGHT_P1_UPPER_LAMP)) ||
+        (lights & (1 << LIGHT_P2_UPPER_LAMP));
+
+    bool btm = (lights & (1 << LIGHT_P1_LOWER_LAMP)) ||
+        (lights & (1 << LIGHT_P2_LOWER_LAMP));
 
     light_buff.ddr.header_up_r = top ? all_colors[top_index][0] : 0x00;
     light_buff.ddr.header_up_g = top ? all_colors[top_index][1] : 0x00;
