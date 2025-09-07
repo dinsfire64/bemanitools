@@ -49,6 +49,26 @@ static const struct p4io_bittrans input_map[] = {
 
 };
 
+// rotating r,g,b colors to cycle through for sd->p4io mapping.
+static const uint8_t all_colors[][3] = {
+    {0x00, 0x00, 0xFF},
+    {0x00, 0xFF, 0x00},
+    {0x00, 0xFF, 0xFF},
+    {0xFF, 0x00, 0x00},
+    {0xFF, 0x00, 0xFF},
+    {0xFF, 0xFF, 0x00},
+    {0xFF, 0xFF, 0xFF},
+};
+static const int num_of_colors = sizeof(all_colors) / sizeof(all_colors[0]);
+
+uint8_t neon_index = 0;
+uint8_t top_index = 0;
+uint8_t bottom_index = 0;
+
+bool prev_neon = false;
+bool prev_top = false;
+bool prev_bottom = false;
+
 p4io_lights_t light_buff = {0};
 p4io_coin_lights_t coin_buff = {0};
 uint32_t jamma[4] = {0};
@@ -178,9 +198,19 @@ uint32_t ddr_io_read_pad(void)
 
 void ddr_io_set_lights_extio(uint32_t lights)
 {
-    // Python4/white cab setup does not have pad lights.
+    // Python4/white cab setup does not have pad lights. :(
 
-    // TODO: pull the NEON light out and map to the bass lights.
+    bool neon_on = (lights & LIGHT_NEONS);
+
+    light_buff.ddr.bass_r = neon_on ? all_colors[neon_index][0] : 0x00;
+    light_buff.ddr.bass_g = neon_on ? all_colors[neon_index][1] : 0x00;
+    light_buff.ddr.bass_b = neon_on ? all_colors[neon_index][2] : 0x00;
+
+    if (neon_on != prev_neon) {
+        neon_index = (neon_index + 1) % num_of_colors;
+    }
+
+    prev_neon = neon_on;
 
     if (p4io_ctx) {
         p4iodrv_cmd_portout(p4io_ctx, (uint8_t *) &light_buff.raw);
@@ -189,7 +219,24 @@ void ddr_io_set_lights_extio(uint32_t lights)
 
 void ddr_io_set_lights_p3io(uint32_t lights)
 {
-    // TODO: map the marquee lights to the RGB of the p4io.
+    bool top = (lights & LIGHT_P1_UPPER_LAMP) || (lights & LIGHT_P2_UPPER_LAMP);
+    bool btm = (lights & LIGHT_P1_LOWER_LAMP) || (lights & LIGHT_P2_LOWER_LAMP);
+
+    light_buff.ddr.header_up_r = top ? all_colors[top_index][0] : 0x00;
+    light_buff.ddr.header_up_g = top ? all_colors[top_index][1] : 0x00;
+    light_buff.ddr.header_up_b = top ? all_colors[top_index][2] : 0x00;
+
+    light_buff.ddr.header_down_r = btm ? all_colors[bottom_index][0] : 0x00;
+    light_buff.ddr.header_down_g = btm ? all_colors[bottom_index][1] : 0x00;
+    light_buff.ddr.header_down_b = btm ? all_colors[bottom_index][2] : 0x00;
+
+    if (top != prev_top) {
+        top_index = (top_index + 1) % num_of_colors;
+    }
+
+    if (btm != prev_bottom) {
+        bottom_index = (bottom_index + 1) % num_of_colors;
+    }
 
     if (p4io_ctx) {
         p4iodrv_cmd_portout(p4io_ctx, (uint8_t *) &light_buff.raw);
