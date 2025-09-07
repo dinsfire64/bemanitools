@@ -17,16 +17,13 @@
 
 #include "aciodrv/device.h"
 #include "aciodrv/mdxf.h"
+#include "p4io/bitinfo.h"
 #include "p4iodrv/device.h"
 
 #include <stdio.h>
 
 static struct p4iodrv_ctx *p4io_ctx;
 static struct aciodrv_device_ctx *mdxf_device;
-
-uint8_t light_buff[16] = {0};
-uint8_t coin_buff[4] = {0};
-uint32_t jamma[4] = {0};
 
 struct p4io_bittrans {
     uint32_t p4io;
@@ -51,6 +48,10 @@ static const struct p4io_bittrans input_map[] = {
     {(1 << 28), 1 << DDR_TEST},
 
 };
+
+p4io_lights_t light_buff = {0};
+p4io_coin_lights_t coin_buff = {0};
+uint32_t jamma[4] = {0};
 
 void ddr_io_set_loggers(
     log_formatter_t misc,
@@ -182,7 +183,7 @@ void ddr_io_set_lights_extio(uint32_t lights)
     // TODO: pull the NEON light out and map to the bass lights.
 
     if (p4io_ctx) {
-        p4iodrv_cmd_portout(p4io_ctx, (uint8_t *) &light_buff);
+        p4iodrv_cmd_portout(p4io_ctx, (uint8_t *) &light_buff.raw);
     }
 }
 
@@ -191,17 +192,26 @@ void ddr_io_set_lights_p3io(uint32_t lights)
     // TODO: map the marquee lights to the RGB of the p4io.
 
     if (p4io_ctx) {
-        p4iodrv_cmd_portout(p4io_ctx, (uint8_t *) &light_buff);
+        p4iodrv_cmd_portout(p4io_ctx, (uint8_t *) &light_buff.raw);
     }
 }
 
 void ddr_io_set_lights_hdxs_panel(uint32_t lights)
 {
-    // TODO: Map the player button lights to the p4io menu lights.
+    light_buff.ddr.p1_start = (lights & (1 << LIGHT_HD_P1_START)) ? 0xFF : 0x00;
+    light_buff.ddr.p1_updown =
+        (lights & (1 << LIGHT_HD_P1_UP_DOWN)) ? 0xFF : 0x00;
+    light_buff.ddr.p1_leftright =
+        (lights & (1 << LIGHT_HD_P1_LEFT_RIGHT)) ? 0xFF : 0x00;
+
+    // p2's lights are on the coinstock endpoint.
+    coin_buff.ddr.p2_start = (lights & (1 << LIGHT_HD_P2_START));
+    coin_buff.ddr.p2_leftright = (lights & (1 << LIGHT_HD_P2_LEFT_RIGHT));
+    coin_buff.ddr.p2_updown = (lights & (1 << LIGHT_HD_P2_UP_DOWN));
 
     if (p4io_ctx) {
-        p4iodrv_cmd_coinstock(p4io_ctx, (uint8_t *) &coin_buff);
-        p4iodrv_cmd_portout(p4io_ctx, (uint8_t *) &light_buff);
+        p4iodrv_cmd_coinstock(p4io_ctx, (uint8_t *) &coin_buff.raw);
+        p4iodrv_cmd_portout(p4io_ctx, (uint8_t *) &light_buff.raw);
     }
 }
 
