@@ -154,23 +154,23 @@ uint32_t ddr_io_read_pad(void)
     struct ac_io_mdxf_poll_in foot_p2 = {0};
 
     if (mdxf_device) {
-        if (!aciodrv_mdxf_poll(mdxf_device, 0, &foot_p1)) {
+        if (aciodrv_mdxf_poll(mdxf_device, 0, &foot_p1)) {
+            pad |= (foot_p1.panel.up > 0) ? (1 << DDR_P1_UP) : 0;
+            pad |= (foot_p1.panel.down > 0) ? (1 << DDR_P1_DOWN) : 0;
+            pad |= (foot_p1.panel.left > 0) ? (1 << DDR_P1_LEFT) : 0;
+            pad |= (foot_p1.panel.right > 0) ? (1 << DDR_P1_RIGHT) : 0;
+        } else {
             log_warning("Could not read from opened p1 mdxf");
         }
 
-        if (!aciodrv_mdxf_poll(mdxf_device, 1, &foot_p2)) {
+        if (aciodrv_mdxf_poll(mdxf_device, 1, &foot_p2)) {
+            pad |= (foot_p2.panel.up > 0) ? (1 << DDR_P2_UP) : 0;
+            pad |= (foot_p2.panel.down > 0) ? (1 << DDR_P2_DOWN) : 0;
+            pad |= (foot_p2.panel.left > 0) ? (1 << DDR_P2_LEFT) : 0;
+            pad |= (foot_p2.panel.right > 0) ? (1 << DDR_P2_RIGHT) : 0;
+        } else {
             log_warning("Could not read from opened p2 mdxf");
         }
-
-        pad |= (foot_p1.panel.up > 0) ? (1 << DDR_P1_UP) : 0;
-        pad |= (foot_p1.panel.down > 0) ? (1 << DDR_P1_DOWN) : 0;
-        pad |= (foot_p1.panel.left > 0) ? (1 << DDR_P1_LEFT) : 0;
-        pad |= (foot_p1.panel.right > 0) ? (1 << DDR_P1_RIGHT) : 0;
-
-        pad |= (foot_p2.panel.up > 0) ? (1 << DDR_P2_UP) : 0;
-        pad |= (foot_p2.panel.down > 0) ? (1 << DDR_P2_DOWN) : 0;
-        pad |= (foot_p2.panel.left > 0) ? (1 << DDR_P2_LEFT) : 0;
-        pad |= (foot_p2.panel.right > 0) ? (1 << DDR_P2_RIGHT) : 0;
     }
 
     return pad;
