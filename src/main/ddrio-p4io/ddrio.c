@@ -22,11 +22,35 @@
 #include <stdio.h>
 
 static struct p4iodrv_ctx *p4io_ctx;
-static struct aciodrv_device_ctx *device;
+static struct aciodrv_device_ctx *mdxf_device;
 
 uint8_t light_buff[16] = {0};
 uint8_t coin_buff[4] = {0};
 uint32_t jamma[4] = {0};
+
+struct p4io_bittrans {
+    uint32_t p4io;
+    uint32_t ddrio;
+};
+
+static const struct p4io_bittrans input_map[] = {
+    {(1 << 0), 1 << DDR_P1_START},
+    {(1 << 1), 1 << DDR_P1_MENU_UP},
+    {(1 << 2), 1 << DDR_P2_MENU_DOWN},
+    {(1 << 3), 1 << DDR_P1_MENU_LEFT},
+    {(1 << 4), 1 << DDR_P1_MENU_RIGHT},
+
+    {(1 << 8), 1 << DDR_P2_START},
+    {(1 << 9), 1 << DDR_P2_MENU_UP},
+    {(1 << 10), 1 << DDR_P1_MENU_DOWN},
+    {(1 << 11), 1 << DDR_P2_MENU_LEFT},
+    {(1 << 12), 1 << DDR_P2_MENU_RIGHT},
+
+    {(1 << 24), 1 << DDR_COIN},
+    {(1 << 25), 1 << DDR_SERVICE},
+    {(1 << 28), 1 << DDR_TEST},
+
+};
 
 void ddr_io_set_loggers(
     log_formatter_t misc,
@@ -73,21 +97,21 @@ bool ddr_io_init(
         // return false;
     }
 
-    device = aciodrv_device_open_path(config_mdxf.port, config_mdxf.baud);
+    mdxf_device = aciodrv_device_open_path(config_mdxf.port, config_mdxf.baud);
 
-    if (!device) {
+    if (!mdxf_device) {
         log_warning("Opening acio device failed");
         // return false;
     }
 
-    int nodes = aciodrv_device_get_node_count(device);
+    int nodes = aciodrv_device_get_node_count(mdxf_device);
 
     if (nodes != 2) {
         log_warning("WARNING: only %d MDXF(s) found, expected 2", nodes);
     }
 
     for (int i = 0; i < nodes; i++) {
-        if (!aciodrv_mdxf_init(device, i)) {
+        if (!aciodrv_mdxf_init(mdxf_device, i)) {
             log_warning("Opening mdxf device %d failed", i);
             return false;
         }
@@ -109,26 +133,44 @@ uint32_t ddr_io_read_pad(void)
 
     // pull the state of the p4io & get the state of the mdxfs
     if (p4io_ctx) {
-        p4iodrv_read_jamma(p4io_ctx, jamma);
+        memset(jamma, 0, sizeof(jamma));
+
+        if (p4iodrv_read_jamma(p4io_ctx, jamma)) {
+            // map the p4io correctly.
+            for (int i = 0; i < lengthof(input_map); i++) {
+                // for ddrio, all of the inputs are in the first 32bit word of
+                // jamma.
+                if (jamma[0] & input_map[i].p4io) {
+                    pad |= input_map[i].ddrio;
+                }
+            }
+        } else {
+            log_warning("Could not read opened p4io");
+        }
     }
 
     struct ac_io_mdxf_poll_in foot_p1 = {0};
     struct ac_io_mdxf_poll_in foot_p2 = {0};
 
-    if (device) {
-        aciodrv_mdxf_poll(device, 0, &foot_p1);
-        aciodrv_mdxf_poll(device, 1, &foot_p2);
+    if (mdxf_device) {
+        if (!aciodrv_mdxf_poll(mdxf_device, 0, &foot_p1)) {
+            log_warning("Could not read from opened p1 mdxf");
+        }
+
+        if (!aciodrv_mdxf_poll(mdxf_device, 1, &foot_p2)) {
+            log_warning("Could not read from opened p2 mdxf");
+        }
+
+        pad |= (foot_p1.panel.up > 0) ? (1 << DDR_P1_UP) : 0;
+        pad |= (foot_p1.panel.down > 0) ? (1 << DDR_P1_DOWN) : 0;
+        pad |= (foot_p1.panel.left > 0) ? (1 << DDR_P1_LEFT) : 0;
+        pad |= (foot_p1.panel.right > 0) ? (1 << DDR_P1_RIGHT) : 0;
+
+        pad |= (foot_p2.panel.up > 0) ? (1 << DDR_P2_UP) : 0;
+        pad |= (foot_p2.panel.down > 0) ? (1 << DDR_P2_DOWN) : 0;
+        pad |= (foot_p2.panel.left > 0) ? (1 << DDR_P2_LEFT) : 0;
+        pad |= (foot_p2.panel.right > 0) ? (1 << DDR_P2_RIGHT) : 0;
     }
-
-    pad |= (foot_p1.panel.up > 0) ? (1 << DDR_P1_UP) : 0;
-    pad |= (foot_p1.panel.down > 0) ? (1 << DDR_P1_DOWN) : 0;
-    pad |= (foot_p1.panel.left > 0) ? (1 << DDR_P1_LEFT) : 0;
-    pad |= (foot_p1.panel.right > 0) ? (1 << DDR_P1_RIGHT) : 0;
-
-    pad |= (foot_p2.panel.up > 0) ? (1 << DDR_P2_UP) : 0;
-    pad |= (foot_p2.panel.down > 0) ? (1 << DDR_P2_DOWN) : 0;
-    pad |= (foot_p2.panel.left > 0) ? (1 << DDR_P2_LEFT) : 0;
-    pad |= (foot_p2.panel.right > 0) ? (1 << DDR_P2_RIGHT) : 0;
 
     return pad;
 }
@@ -158,6 +200,7 @@ void ddr_io_set_lights_hdxs_panel(uint32_t lights)
     // TODO: Map the player button lights to the p4io menu lights.
 
     if (p4io_ctx) {
+        p4iodrv_cmd_coinstock(p4io_ctx, (uint8_t *) &coin_buff);
         p4iodrv_cmd_portout(p4io_ctx, (uint8_t *) &light_buff);
     }
 }
@@ -169,8 +212,8 @@ void ddr_io_set_lights_hdxs_rgb(uint8_t idx, uint8_t r, uint8_t g, uint8_t b)
 
 void ddr_io_fini(void)
 {
-    if (device) {
-        aciodrv_device_close(device);
+    if (mdxf_device) {
+        aciodrv_device_close(mdxf_device);
     }
 
     if (p4io_ctx) {
