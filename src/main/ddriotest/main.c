@@ -217,9 +217,11 @@ int main(int argc, char **argv)
                     n = scanf("%d", &state);
 
                     if (n > 0) {
-                        extio_lights |= (1 << LIGHT_NEONS);
-                    } else {
-                        extio_lights &= ~(1 << LIGHT_NEONS);
+                        if (state > 0) {
+                            extio_lights |= (1 << LIGHT_NEONS);
+                        } else {
+                            extio_lights &= ~(1 << LIGHT_NEONS);
+                        }
                     }
 
                     break;
