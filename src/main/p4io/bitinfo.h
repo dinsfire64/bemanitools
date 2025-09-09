@@ -12,7 +12,7 @@ typedef union {
         bool p2_start : 1;
         bool coin0_5 : 1;
         bool coin0_6 : 1;
-        bool coin0_7 : 1;
+        bool coin_blocker : 1;
 
         bool coin1_0 : 1;
         bool coin1_1 : 1;

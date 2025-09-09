@@ -1,3 +1,5 @@
+#define LOG_MODULE "ddrio-p4io"
+
 #include <windows.h>
 
 #include <stdatomic.h>
@@ -12,6 +14,7 @@
 
 #include "util/defs.h"
 #include "util/log.h"
+#include "util/time.h"
 
 #include "config.h"
 
@@ -33,13 +36,13 @@ struct p4io_bittrans {
 static const struct p4io_bittrans input_map[] = {
     {(1 << 0), 1 << DDR_P1_START},
     {(1 << 1), 1 << DDR_P1_MENU_UP},
-    {(1 << 2), 1 << DDR_P2_MENU_DOWN},
+    {(1 << 2), 1 << DDR_P1_MENU_DOWN},
     {(1 << 3), 1 << DDR_P1_MENU_LEFT},
     {(1 << 4), 1 << DDR_P1_MENU_RIGHT},
 
     {(1 << 8), 1 << DDR_P2_START},
     {(1 << 9), 1 << DDR_P2_MENU_UP},
-    {(1 << 10), 1 << DDR_P1_MENU_DOWN},
+    {(1 << 10), 1 << DDR_P2_MENU_DOWN},
     {(1 << 11), 1 << DDR_P2_MENU_LEFT},
     {(1 << 12), 1 << DDR_P2_MENU_RIGHT},
 
@@ -69,6 +72,8 @@ bool prev_neon = false;
 bool prev_top = false;
 bool prev_bottom = false;
 
+bool has_hdxs_lights = false;
+
 p4io_lights_t light_buff = {0};
 p4io_coinstock_t coin_buff = {0};
 uint32_t jamma[4] = {0};
@@ -87,7 +92,7 @@ bool ddr_io_init(
     thread_join_t thread_join,
     thread_destroy_t thread_destroy)
 {
-    log_warning("ddr_io_init");
+    log_info("ddrio-p4io start");
 
     struct cconfig *config;
     struct p4io_mdxf_config config_mdxf;
@@ -145,13 +150,6 @@ uint32_t ddr_io_read_pad(void)
 {
     uint32_t pad = 0;
 
-    /* Sleep first: input is timestamped immediately AFTER the ioctl returns.
-
-    Which is the right thing to do, for once. We sleep here because
-    the game polls input in a tight loop. Can't complain, at there isn't
-    an artificial limit on the poll frequency. */
-    Sleep(1);
-
     // pull the state of the p4io & get the state of the mdxfs
     if (p4io_ctx) {
         memset(jamma, 0, sizeof(jamma));
@@ -173,6 +171,8 @@ uint32_t ddr_io_read_pad(void)
     struct ac_io_mdxf_poll_in foot_p1 = {0};
     struct ac_io_mdxf_poll_in foot_p2 = {0};
 
+    // uint64_t start = time_get_counter();
+
     if (mdxf_device) {
         if (aciodrv_mdxf_poll(mdxf_device, 0, &foot_p1)) {
             pad |= (foot_p1.panel.up > 0) ? (1 << DDR_P1_UP) : 0;
@@ -193,6 +193,9 @@ uint32_t ddr_io_read_pad(void)
         }
     }
 
+    // log_warning("poll time %lld", time_get_elapsed_us(time_get_counter() -
+    // start));
+
     return pad;
 }
 
@@ -202,19 +205,21 @@ void ddr_io_set_lights_extio(uint32_t lights)
 
     bool neon_on = (lights & (1 << LIGHT_NEONS));
 
-    light_buff.ddr.bass_r = neon_on ? all_colors[neon_index][0] : 0x00;
-    light_buff.ddr.bass_g = neon_on ? all_colors[neon_index][1] : 0x00;
-    light_buff.ddr.bass_b = neon_on ? all_colors[neon_index][2] : 0x00;
+    if (neon_on != prev_neon) {
+        if (neon_on) {
+            neon_index = (neon_index + 1) % num_of_colors;
+        }
 
-    if (neon_on && neon_on != prev_neon) {
-        neon_index = (neon_index + 1) % num_of_colors;
+        light_buff.ddr.bass_r = neon_on ? all_colors[neon_index][0] : 0x00;
+        light_buff.ddr.bass_g = neon_on ? all_colors[neon_index][1] : 0x00;
+        light_buff.ddr.bass_b = neon_on ? all_colors[neon_index][2] : 0x00;
     }
-
-    prev_neon = neon_on;
 
     if (p4io_ctx) {
         p4iodrv_cmd_portout(p4io_ctx, (uint8_t *) &light_buff.raw);
     }
+
+    prev_neon = neon_on;
 }
 
 void ddr_io_set_lights_p3io(uint32_t lights)
@@ -225,29 +230,55 @@ void ddr_io_set_lights_p3io(uint32_t lights)
     bool btm = (lights & (1 << LIGHT_P1_LOWER_LAMP)) ||
         (lights & (1 << LIGHT_P2_LOWER_LAMP));
 
-    light_buff.ddr.header_up_r = top ? all_colors[top_index][0] : 0x00;
-    light_buff.ddr.header_up_g = top ? all_colors[top_index][1] : 0x00;
-    light_buff.ddr.header_up_b = top ? all_colors[top_index][2] : 0x00;
+    if (top != prev_top) {
+        if (top) {
+            top_index = (top_index + 1) % num_of_colors;
+        }
 
-    light_buff.ddr.header_down_r = btm ? all_colors[bottom_index][0] : 0x00;
-    light_buff.ddr.header_down_g = btm ? all_colors[bottom_index][1] : 0x00;
-    light_buff.ddr.header_down_b = btm ? all_colors[bottom_index][2] : 0x00;
-
-    if (top && top != prev_top) {
-        top_index = (top_index + 1) % num_of_colors;
+        light_buff.ddr.header_up_r = top ? all_colors[top_index][0] : 0x00;
+        light_buff.ddr.header_up_g = top ? all_colors[top_index][1] : 0x00;
+        light_buff.ddr.header_up_b = top ? all_colors[top_index][2] : 0x00;
     }
 
-    if (btm && btm != prev_bottom) {
-        bottom_index = (bottom_index + 1) % num_of_colors;
+    if (btm != prev_bottom) {
+        if (btm) {
+            bottom_index = (bottom_index + 1) % num_of_colors;
+        }
+
+        light_buff.ddr.header_down_r = btm ? all_colors[bottom_index][0] : 0x00;
+        light_buff.ddr.header_down_g = btm ? all_colors[bottom_index][1] : 0x00;
+        light_buff.ddr.header_down_b = btm ? all_colors[bottom_index][2] : 0x00;
+    }
+
+    if (!has_hdxs_lights) {
+        light_buff.ddr.p1_start = (lights & (1 << LIGHT_P1_MENU)) ? 0xFF : 0x00;
+        light_buff.ddr.p1_leftright =
+            (lights & (1 << LIGHT_P1_MENU)) ? 0xFF : 0x00;
+
+        // p2's lights are on the coinstock endpoint.
+        coin_buff.ddr.p2_start = (lights & (1 << LIGHT_P1_MENU));
+        coin_buff.ddr.p2_leftright = (lights & (1 << LIGHT_P1_MENU));
+
+        if (p4io_ctx) {
+            p4iodrv_cmd_portout(p4io_ctx, (uint8_t *) &light_buff.raw);
+        }
     }
 
     if (p4io_ctx) {
-        p4iodrv_cmd_portout(p4io_ctx, (uint8_t *) &light_buff.raw);
+        p4iodrv_cmd_coinstock(p4io_ctx, (uint8_t *) &coin_buff.raw);
     }
+
+    prev_top = top;
+    prev_bottom = btm;
 }
 
 void ddr_io_set_lights_hdxs_panel(uint32_t lights)
 {
+    if (!has_hdxs_lights) {
+        log_warning("using hdxs lights for this power cycle");
+        has_hdxs_lights = true;
+    }
+
     light_buff.ddr.p1_start = (lights & (1 << LIGHT_HD_P1_START)) ? 0xFF : 0x00;
     light_buff.ddr.p1_updown =
         (lights & (1 << LIGHT_HD_P1_UP_DOWN)) ? 0xFF : 0x00;
