@@ -16,13 +16,13 @@ void ddrio_config_p4io_mdxf_init(struct cconfig *config)
         config,
         DDRIO_CONFIG_P4IO_MDXF_PORT_KEY,
         DDRIO_CONFIG_P4IO_MDXF_DEFAULT_PORT_VALUE,
-        "P4IO_MDXF serial port");
+        "MDXF serial port");
 
     cconfig_util_set_int(
         config,
         DDRIO_CONFIG_P4IO_MDXF_BAUD_KEY,
         DDRIO_CONFIG_P4IO_MDXF_DEFAULT_BAUD_VALUE,
-        "P4IO_MDXF bus baudrate (115200 is high speed, but will respond at 57600)");
+        "MDXF bus baudrate (115200 is high speed, but will respond at 57600)");
 }
 
 void ddrio_config_p4io_mdxf_get(

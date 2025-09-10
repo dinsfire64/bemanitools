@@ -316,6 +316,13 @@ int main(int argc, char **argv)
                     p3io_lights |= (1 << LIGHT_P2_UPPER_LAMP);
                     p3io_lights |= (1 << LIGHT_P2_LOWER_LAMP);
 
+                    hdxs_lights |= (1 << LIGHT_HD_P1_START);
+                    hdxs_lights |= (1 << LIGHT_HD_P1_UP_DOWN);
+                    hdxs_lights |= (1 << LIGHT_HD_P1_LEFT_RIGHT);
+                    hdxs_lights |= (1 << LIGHT_HD_P2_START);
+                    hdxs_lights |= (1 << LIGHT_HD_P2_UP_DOWN);
+                    hdxs_lights |= (1 << LIGHT_HD_P2_LEFT_RIGHT);
+
                     break;
                 }
 
@@ -328,6 +335,13 @@ int main(int argc, char **argv)
                     p3io_lights &= ~(1 << LIGHT_P1_LOWER_LAMP);
                     p3io_lights &= ~(1 << LIGHT_P2_UPPER_LAMP);
                     p3io_lights &= ~(1 << LIGHT_P2_LOWER_LAMP);
+
+                    hdxs_lights &= ~(1 << LIGHT_HD_P1_START);
+                    hdxs_lights &= ~(1 << LIGHT_HD_P1_UP_DOWN);
+                    hdxs_lights &= ~(1 << LIGHT_HD_P1_LEFT_RIGHT);
+                    hdxs_lights &= ~(1 << LIGHT_HD_P2_START);
+                    hdxs_lights &= ~(1 << LIGHT_HD_P2_UP_DOWN);
+                    hdxs_lights &= ~(1 << LIGHT_HD_P2_LEFT_RIGHT);
 
                     break;
                 }
