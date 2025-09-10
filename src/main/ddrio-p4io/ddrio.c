@@ -120,14 +120,14 @@ bool ddr_io_init(
 
     if (!p4io_ctx) {
         log_warning("Could not open p4io");
-        // return false;
+        return false;
     }
 
     mdxf_device = aciodrv_device_open_path(config_mdxf.port, config_mdxf.baud);
 
     if (!mdxf_device) {
         log_warning("Opening acio device failed");
-        // return false;
+        return false;
     }
 
     int nodes = aciodrv_device_get_node_count(mdxf_device);
@@ -137,9 +137,9 @@ bool ddr_io_init(
     }
 
     for (int i = 0; i < nodes; i++) {
-        if (!aciodrv_mdxf_init(mdxf_device, i)) {
+        if (!aciodrv_mdxf_init(mdxf_device, i, false)) {
             log_warning("Opening mdxf device %d failed", i);
-            // return false;
+            return false;
         }
     }
 
@@ -251,6 +251,8 @@ void ddr_io_set_lights_p3io(uint32_t lights)
     }
 
     if (!has_hdxs_lights) {
+        // map the p3io sd lights -> white hd lights
+        // if we aren't being given hdxs lights.
         light_buff.ddr.p1_start = (lights & (1 << LIGHT_P1_MENU)) ? 0xFF : 0x00;
         light_buff.ddr.p1_leftright =
             (lights & (1 << LIGHT_P1_MENU)) ? 0xFF : 0x00;
@@ -260,12 +262,12 @@ void ddr_io_set_lights_p3io(uint32_t lights)
         coin_buff.ddr.p2_leftright = (lights & (1 << LIGHT_P1_MENU));
 
         if (p4io_ctx) {
-            p4iodrv_cmd_portout(p4io_ctx, (uint8_t *) &light_buff.raw);
+            p4iodrv_cmd_coinstock(p4io_ctx, (uint8_t *) &coin_buff.raw);
         }
     }
 
     if (p4io_ctx) {
-        p4iodrv_cmd_coinstock(p4io_ctx, (uint8_t *) &coin_buff.raw);
+        p4iodrv_cmd_portout(p4io_ctx, (uint8_t *) &light_buff.raw);
     }
 
     prev_top = top;
@@ -298,7 +300,7 @@ void ddr_io_set_lights_hdxs_panel(uint32_t lights)
 
 void ddr_io_set_lights_hdxs_rgb(uint8_t idx, uint8_t r, uint8_t g, uint8_t b)
 {
-    // TODO
+    // not supported.
 }
 
 void ddr_io_fini(void)
