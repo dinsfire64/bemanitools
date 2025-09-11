@@ -137,7 +137,7 @@ bool ddr_io_init(
     }
 
     for (int i = 0; i < nodes; i++) {
-        if (!aciodrv_mdxf_init(mdxf_device, i, false)) {
+        if (!aciodrv_mdxf_init(mdxf_device, i)) {
             log_warning("Opening mdxf device %d failed", i);
             return false;
         }
