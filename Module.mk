@@ -196,6 +196,7 @@ include src/main/sdvxhook2/Module.mk
 include src/main/sdvxio-bio2/Module.mk
 include src/main/sdvxio-kfca/Module.mk
 include src/main/sdvxio/Module.mk
+include src/main/sdvxiotest/Module.mk
 include src/main/security/Module.mk
 include src/main/unicorntail/Module.mk
 include src/main/util/Module.mk
@@ -635,6 +636,7 @@ $(zipdir)/sdvx-hwio-x86.zip: \
 		build/bin/indep-32/sdvxio-kfca.dll \
 		build/bin/indep-32/sdvxio-bio2.dll \
 		build/bin/indep-32/vigem-sdvxio.exe \
+		build/bin/indep-32/sdvxiotest.exe \
 		| $(zipdir)/
 	$(V)echo ... $@
 	$(V)zip -j $@ $^
@@ -645,6 +647,7 @@ $(zipdir)/sdvx-hwio-x64.zip: \
 		build/bin/indep-64/sdvxio-kfca.dll \
 		build/bin/indep-64/sdvxio-bio2.dll \
 		build/bin/indep-64/vigem-sdvxio.exe \
+		build/bin/indep-64/sdvxiotest.exe \
 		| $(zipdir)/
 	$(V)echo ... $@
 	$(V)zip -j $@ $^
