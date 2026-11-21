@@ -6,6 +6,7 @@
 #include "p3io/cmd.h"
 #include "p3io/frame.h"
 
+#include "p3ioemu/emu.h"
 #include "p3ioemu/uart.h"
 
 #include "unicorntail/p3io.h"
@@ -27,16 +28,57 @@ static CRITICAL_SECTION p3io_cmd_lock;
 static uint8_t p3io_resp_bytes[260];
 static struct iobuf p3io_resp;
 
-void p3io_filter_init(void)
+static HRESULT p3io_ddr_get_roundplug(
+    void *ctx, uint8_t plug_id, uint8_t *rom, uint8_t *eeprom);
+
+static const struct p3io_ops p3io_ddr_unicorntail_with_plugs = {
+    .get_roundplug = p3io_ddr_get_roundplug,
+};
+
+static struct security_mcode p3io_ddr_mcode;
+static struct security_id p3io_ddr_pcbid;
+static struct security_id p3io_ddr_eamid;
+static struct security_rp_sign_key p3io_black_sign_key;
+static struct security_rp_sign_key p3io_white_sign_key;
+
+void p3io_filter_init(const char *port)
 {
     InitializeCriticalSection(&p3io_handle_lock);
     InitializeCriticalSection(&p3io_cmd_lock);
 
-    p3io_uart_set_path(0, L"COM4");
+    static wchar_t wc_port[64];
+    mbstowcs(wc_port, port, 64);
+
+    p3io_uart_set_path(0, wc_port);
 
     p3io_resp.bytes = p3io_resp_bytes;
     p3io_resp.nbytes = sizeof(p3io_resp_bytes);
     p3io_resp.pos = 0;
+}
+
+void p3io_filter_init_with_plugs(
+    const char *port,
+    const struct security_mcode *mcode,
+    const struct security_id *pcbid,
+    const struct security_id *eamid,
+    const struct security_rp_sign_key *black_sign_key,
+    const struct security_rp_sign_key *white_sign_key)
+{
+    memcpy(&p3io_ddr_mcode, mcode, sizeof(struct security_mcode));
+    memcpy(&p3io_ddr_pcbid, pcbid, sizeof(struct security_id));
+    memcpy(&p3io_ddr_eamid, eamid, sizeof(struct security_id));
+    memcpy(
+        &p3io_black_sign_key,
+        black_sign_key,
+        sizeof(struct security_rp_sign_key));
+    memcpy(
+        &p3io_white_sign_key,
+        white_sign_key,
+        sizeof(struct security_rp_sign_key));
+
+    p3io_emu_init(&p3io_ddr_unicorntail_with_plugs, NULL);
+
+    p3io_filter_init(port);
 }
 
 void p3io_filter_fini(void)
@@ -166,6 +208,12 @@ static HRESULT p3io_handle_write(struct irp *irp)
 
             break;
 
+        case P3IO_CMD_READ_PLUG:
+            EnterCriticalSection(&p3io_cmd_lock);
+            p3io_cmd_read_plug(&req.read_plug, &resp.read_plug);
+
+            break;
+
         default:
             /* Non-UART command, break out here. */
             irp->write.pos = 0;
@@ -200,4 +248,34 @@ static HRESULT p3io_handle_read(struct irp *irp)
 
         return S_OK;
     }
+}
+
+static HRESULT p3io_ddr_get_roundplug(
+    void *ctx, uint8_t plug_id, uint8_t *rom, uint8_t *eeprom)
+{
+    struct security_rp3_eeprom eeprom_out;
+
+    if (plug_id == 0) {
+        /* black */
+        memcpy(rom, p3io_ddr_pcbid.id, sizeof(p3io_ddr_pcbid.id));
+        security_rp3_generate_signed_eeprom_data(
+            SECURITY_RP_UTIL_RP_TYPE_BLACK,
+            &p3io_black_sign_key,
+            &p3io_ddr_mcode,
+            &p3io_ddr_pcbid,
+            &eeprom_out);
+    } else {
+        /* white */
+        memcpy(rom, p3io_ddr_eamid.id, sizeof(p3io_ddr_eamid.id));
+        security_rp3_generate_signed_eeprom_data(
+            SECURITY_RP_UTIL_RP_TYPE_WHITE,
+            &p3io_white_sign_key,
+            &security_mcode_eamuse,
+            &p3io_ddr_eamid,
+            &eeprom_out);
+    }
+
+    memcpy(eeprom, &eeprom_out, sizeof(struct security_rp3_eeprom));
+
+    return S_OK;
 }

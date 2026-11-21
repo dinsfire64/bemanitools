@@ -35,6 +35,11 @@ void p3io_uart_set_path(size_t uart_no, const wchar_t *path)
     log_assert(uart_no <= 1);
 
     p3io_uart_paths[uart_no] = path;
+
+    log_info(
+        "Remote p3io port #%d set to %ls",
+        (int) uart_no,
+        p3io_uart_paths[uart_no]);
 }
 
 void p3io_uart_cmd_open_close(
@@ -57,7 +62,10 @@ void p3io_uart_cmd_open_close(
 
     switch (req->subcmd) {
         case P3IO_RS232_CMD_OPEN:
-            log_info("Opening remote RS232 port #%d", req->port_no);
+            log_info(
+                "Opening remote RS232 port #%d->%ls",
+                req->port_no,
+                p3io_uart_paths[req->port_no]);
 
             if (req->baud_code < lengthof(p3io_uart_baud_codes)) {
                 baud_rate = p3io_uart_baud_codes[req->baud_code];

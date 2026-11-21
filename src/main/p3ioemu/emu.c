@@ -40,7 +40,7 @@ static void p3io_cmd_set_watchdog(
     const struct p3io_req_watchdog *req, struct p3io_resp_watchdog *resp);
 static void p3io_cmd_set_outputs(
     const struct p3io_req_set_outputs *req, struct p3io_resp_set_outputs *resp);
-static void p3io_cmd_read_plug(
+void p3io_cmd_read_plug(
     const struct p3io_req_read_plug *req, struct p3io_resp_read_plug *resp);
 static void p3io_cmd_get_cab_type_or_dipsw(
     const struct p3io_req_get_cab_type_or_dipsw *req,
@@ -367,7 +367,7 @@ static void p3io_cmd_set_outputs(
     resp->unkn_FF = 0xFF;
 }
 
-static void p3io_cmd_read_plug(
+void p3io_cmd_read_plug(
     const struct p3io_req_read_plug *req, struct p3io_resp_read_plug *resp)
 {
     HRESULT hr;
